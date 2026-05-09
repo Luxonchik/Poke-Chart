@@ -11,7 +11,7 @@ services:
       - POSTGRES_PASSWORD=admin_password
       - POSTGRES_DB=pokecart
     ports:
-      - "5432:5432" # Прокидываем порт, чтобы ты мог подключиться через DBeaver или PGAdmin
+      - "5433:5432" # Прокидываем порт, чтобы ты мог подключиться через DBeaver или PGAdmin
     volumes:
       - db_data:/var/lib/postgresql/data
       # Сюда положим SQL скрипт, чтобы таблицы создались сами при старте

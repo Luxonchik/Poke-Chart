@@ -1,0 +1,21 @@
+version: "3"
+
+tasks:
+  api:
+    dir: services/api
+    cmds:
+      - go run cmd/api/main.go
+
+  scraper:
+    dir: services/scraper-carrot
+    cmds:
+      - go run cmd/main.go
+
+  web:
+    dir: web
+    cmds:
+      - npm run dev -- -p 3001
+
+  # Запустить всё сразу параллельно
+  default:
+    deps: [api, scraper, web]

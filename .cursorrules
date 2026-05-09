@@ -1,0 +1,57 @@
+# Project: PokeChart KR (Pokémon TCG Price Aggregator)
+
+## 🎯 Project Overview
+An analytical web platform for tracking and aggregating secondary market prices of Pokémon TCG cards in South Korea. The system parses marketplaces (like Danggeun Market), uses AI Vision to identify cards from images, matches them against a master database, and displays price trends via a web interface.
+
+## 🛠 Tech Stack
+- **Frontend:** Next.js (App Router), React, TypeScript, TailwindCSS, shadcn/ui, React Query.
+- **Backend:** Go (Golang) 1.21+, standard `net/http` router.
+- **Database:** PostgreSQL.
+- **AI Integration:** Google Gemini Vision API (gemini-2.5-flash).
+
+## 📂 Architecture & Folder Structure
+The project is divided into two main monorepo-style directories:
+
+### Backend (`/api`)
+Follows standard idiomatic Go project layout:
+- `cmd/api/main.go` - Application entry point, DB connection, Router setup.
+- `internal/handlers/` - HTTP request/response handlers (e.g., `vision_handler.go`, `card_handler.go`).
+- `internal/repository/` - Database interactions and SQL queries (`card_repo.go`).
+- `internal/models/` - Struct definitions representing DB tables and API payloads.
+- `internal/services/` - Business logic and external APIs (`vision/gemini.go`).
+
+### Frontend (`/frontend`)
+Follows Next.js App Router conventions:
+- `src/app/` - Pages and layouts.
+- `src/components/ui/` - Reusable dumb components (shadcn/ui).
+- `src/components/features/` - Complex domain-specific components (e.g., `VisionScanner.tsx`, `InfiniteCardGrid.tsx`).
+- `src/lib/` - Utility functions and API client fetchers.
+
+## 🧠 Core Business Logic (The Pipeline)
+1. **Parsing:** Fetch listings from Danggeun Market. Filter out bulk sales, accessories, and invalid prices.
+2. **AI Recognition:** Send the listing's image URL to Gemini Vision API. The AI returns a strict JSON containing the Korean `name`, `rarity`, and `card_no`.
+3. **DB Matching:** Query the `master_cards` PostgreSQL table using the AI-extracted `name` and `rarity`.
+4. **Data Aggregation:** Save the listing to `market_listings` linked to the `master_card_id` to calculate average market prices.
+
+## 💾 Database Schema Reference
+- `master_cards`: Contains official card data (`id`, `name`, `rarity`, `card_no`, `series`, `image_url`).
+- `market_listings`: Contains parsed marketplace ads (`id`, `master_card_id`, `price`, `source_url`, `seller_thumbnail`, `status`, `created_at`).
+
+## ⚠️ Coding Guidelines & Rules for AI
+1. **Go (Backend):**
+   - Use standard `net/http` `ServeMux` (Go 1.22+ routing features if applicable).
+   - NEVER hardcode API keys or DB credentials. Always use `.env` and `os.Getenv`.
+   - Handle errors explicitly (e.g., `if err != nil`). No silent failures. Do not use `panic` outside of initialization.
+   - Separate concerns: Handlers parse JSON -> Services do logic -> Repositories talk to DB.
+
+2. **TypeScript/React (Frontend):**
+   - Use Server Components by default. Use `"use client"` ONLY for components requiring state (`useState`), hooks (`useMutation`), or browser APIs.
+   - Strictly type all API responses using TypeScript interfaces.
+   - Use Lucide React for icons.
+
+3. **Language:**
+   - UI Text and API error messages should be in **Russian** (or Korean for card data).
+   - Code, variables, functions, and commit messages must be in **English**.
+
+4. **Safety:**
+   - When generating AI integration code, implement exponential backoff / retry logic for HTTP status 429 and 503.
