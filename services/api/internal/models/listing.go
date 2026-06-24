@@ -9,9 +9,11 @@ type MarketListing struct {
 	Price        int       `json:"price"`
 	ImageURL     string    `json:"image_url"`
 	SourceURL    string    `json:"source_url"`
-	MasterCardID *int      `json:"master_card_id"` // Указатель, так как может быть nil (NULL в базе)
+	MasterCardID *string   `json:"master_card_id"` // Указатель, так как может быть nil (NULL в базе)
 	Status       string    `json:"status"`
 	AIErrorMsg   *string   `json:"ai_error_msg,omitempty"`
+	AICardNo     *string   `json:"ai_card_no,omitempty"`
+	AISeries     *string   `json:"ai_series,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
@@ -26,3 +28,5 @@ type CreateListingRequest struct {
 	CreatedAt string `json:"created_at"`
 	BoostedAt string `json:"boosted_at"`
 }
+
+

@@ -1,8 +1,13 @@
 version: "3"
 
 tasks:
+  db:
+    cmds:
+      - docker compose up -d --wait db
+
   api:
     dir: services/api
+    deps: [db]
     cmds:
       - go run cmd/api/main.go
 
@@ -18,4 +23,4 @@ tasks:
 
   # Запустить всё сразу параллельно
   default:
-    deps: [api, scraper, web]
+    deps: [api, web]

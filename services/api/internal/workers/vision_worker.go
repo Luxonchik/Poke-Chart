@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"pokechart-api/internal/models"
 	"pokechart-api/internal/repository"
 	"pokechart-api/internal/services/vision"
 )
@@ -57,6 +58,14 @@ func StartVisionWorker(db *sql.DB, cardRepo *repository.CardRepo) {
 			continue
 		}
 
+		// Сохраняем то, что распознал ИИ (для дебага/будущего матчинга)
+		if aiResult.CardNo != "" {
+			db.Exec("UPDATE market_listings SET ai_card_no = $1, updated_at = NOW() WHERE id = $2", aiResult.CardNo, id)
+		}
+		if aiResult.Series != "" {
+			db.Exec("UPDATE market_listings SET ai_series = $1, updated_at = NOW() WHERE id = $2", aiResult.Series, id)
+		}
+
 		// Защита от фото кроссовок или мебели
 		if !aiResult.IsPokemonCard {
 			db.Exec("UPDATE market_listings SET status = 'rejected', ai_error_msg = 'Не покемон', updated_at = NOW() WHERE id = $1", id)
@@ -64,7 +73,38 @@ func StartVisionWorker(db *sql.DB, cardRepo *repository.CardRepo) {
 		}
 
 		// 3. Ищем карту в официальном справочнике
-		masterCard, err := cardRepo.FindCardByNameAndRarity(aiResult.Name, aiResult.Rarity)
+		var masterCard *models.Card
+		// Сначала пробуем более точный ключ: card_no (+ уточнение по имени если есть коллизии)
+		if aiResult.CardNo != "" {
+			if c, e := cardRepo.FindBestByCardNoThenName(aiResult.CardNo, aiResult.Name); e == nil {
+				masterCard = c
+			}
+		}
+		// Потом пробуем name + series (если series удалось извлечь)
+		if masterCard == nil && aiResult.Series != "" {
+			// Если candidates > 1, используем визуальный выбор среди эталонных картинок.
+			cands, _ := cardRepo.FindCandidateCardsByNameAndSeries(aiResult.Name, aiResult.Series, 5)
+			if len(cands) == 1 {
+				cc := cands[0]
+				masterCard = &cc
+			} else if len(cands) > 1 {
+				if cc, e := vision.ResolveMasterCardByImages(imageUrl, cands); e == nil && cc != nil {
+					masterCard = cc
+				}
+			}
+			// If we still didn't resolve, try a simple DB pick as last attempt within this stage.
+			if masterCard == nil {
+				if c, e := cardRepo.FindCardByNameAndSeries(aiResult.Name, aiResult.Series); e == nil {
+					masterCard = c
+				}
+			}
+		}
+		// Fallback на старый способ (имя + редкость)
+		if masterCard == nil {
+			masterCard, err = cardRepo.FindCardByNameAndRarity(aiResult.Name, aiResult.Rarity)
+		} else {
+			err = nil
+		}
 		if err != nil {
 			// ИИ распознал, но такой карты нет в нашей базе
 			log.Printf("⚠️ Карта %s %s не найдена в БД\n", aiResult.Name, aiResult.Rarity)

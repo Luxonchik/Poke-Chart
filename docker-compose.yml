@@ -12,6 +12,11 @@ services:
       - POSTGRES_DB=pokecart
     ports:
       - "5433:5432" # Прокидываем порт, чтобы ты мог подключиться через DBeaver или PGAdmin
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d pokecart"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     volumes:
       - db_data:/var/lib/postgresql/data
       # Сюда положим SQL скрипт, чтобы таблицы создались сами при старте
