@@ -1,0 +1,29 @@
+{
+  "landing": {
+    "title": "한국 인기 카드",
+    "subtitle": "국내 마켓플레이스 실시간 시세"
+  },
+  "cards": {
+    "loading": "불러오는 중...",
+    "error": "카드를 불러오지 못했습니다",
+    "loadingMore": "더 불러오는 중...",
+    "noMore": "모든 카드를 불러왔습니다"
+  },
+  "cardDetail": {
+    "priceHistory": "가격 변동",
+    "whereItsSelling": "현재 판매 중",
+    "viewFullDetails": "상세 정보 보기",
+    "inStock": "재고 {count}개",
+    "lowest": "최저가",
+    "lowestMarketPrice": "마켓 최저가",
+    "period7D": "7일",
+    "period30D": "30일",
+    "period90D": "90일",
+    "condition": {
+      "mint": "민트",
+      "nearMint": "준민트",
+      "excellent": "우수",
+      "good": "양호"
+    }
+  }
+}

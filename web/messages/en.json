@@ -1,0 +1,29 @@
+{
+  "landing": {
+    "title": "Trending in Korea",
+    "subtitle": "Live local prices across Korean marketplaces"
+  },
+  "cards": {
+    "loading": "Loading...",
+    "error": "Failed to load cards",
+    "loadingMore": "Loading more...",
+    "noMore": "All cards loaded"
+  },
+  "cardDetail": {
+    "priceHistory": "Price history",
+    "whereItsSelling": "Where it's selling now",
+    "viewFullDetails": "View full details",
+    "inStock": "{count} in stock",
+    "lowest": "Lowest",
+    "lowestMarketPrice": "Lowest market price",
+    "period7D": "7D",
+    "period30D": "30D",
+    "period90D": "90D",
+    "condition": {
+      "mint": "Mint",
+      "nearMint": "Near Mint",
+      "excellent": "Excellent",
+      "good": "Good"
+    }
+  }
+}
