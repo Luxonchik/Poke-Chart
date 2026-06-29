@@ -11,3 +11,8 @@ type Card struct {
 	Rarity   string `json:"rarity"`
 	Series   string `json:"series"`
 }
+
+type CardWithListingCount struct {
+	Card
+	ListingCount int `json:"listing_count"`
+}

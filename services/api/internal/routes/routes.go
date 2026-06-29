@@ -15,6 +15,7 @@ func Setup(mux *http.ServeMux, db *sql.DB) {
     listingHandler := handlers.NewListingHandler(listingRepo)
 
     mux.HandleFunc("GET /api/cards", cardHandler.GetCards)
+    mux.HandleFunc("GET /api/cards/{cardId}/listings", listingHandler.GetListingsForCard)
     mux.HandleFunc("POST /api/test-vision", handlers.TestVisionHandler)
     mux.HandleFunc("POST /api/listings", listingHandler.ReceiveFromScraper)
 }

@@ -7,9 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
-
-	// "strconv"
-	// "time"
+	"strings"
 
 	"scraper-carrot/internal/models"
 )
@@ -44,6 +42,13 @@ import (
 // }
 
 
+func ensureAbsoluteURL(href string) string {
+	if strings.HasPrefix(href, "https://") || strings.HasPrefix(href, "http://") {
+		return href
+	}
+	return "https://www.daangn.com" + href
+}
+
 func SendToAPI(item models.Article, priceInt int) {
 	// 1. Собираем данные ровно в том формате, который ждет наш API
 	payload := map[string]interface{}{
@@ -51,7 +56,7 @@ func SendToAPI(item models.Article, priceInt int) {
 		"title":      item.Title,
 		"price":      priceInt, // Отправляем как число
 		"image_url":  item.Thumbnail,
-		"source_url": "https://www.daangn.com" + item.Href, // Клеим полный URL, так как 당근 영дает относительный
+		"source_url": ensureAbsoluteURL(item.Href),
 		"created_at": item.CreatedAt,
 		"boosted_at": item.BoostedAt,
 	}

@@ -22,14 +22,13 @@ func NewCardRepo(db *sql.DB) *CardRepo {
 
 // GetAllCards делает SELECT запрос и возвращает массив карточек (с лимитом для начала)
 func (r *CardRepo) GetAllCards(limit int, offset int) ([]models.Card, error) {
-	// Берем с лимитом, чтобы не вывалить сразу 5000 карт в браузер
 	query := `
-		SELECT id, name, image_url, card_no, rarity, series 
-		FROM master_cards 
+		SELECT id, name, image_url, card_no, rarity, series
+		FROM master_cards
 		ORDER BY id
 		LIMIT $1 OFFSET $2
 	`
-	
+
 	rows, err := r.DB.Query(query, limit, offset)
 	if err != nil {
 		log.Println("❌ Ошибка при запросе карт:", err)
@@ -37,14 +36,47 @@ func (r *CardRepo) GetAllCards(limit int, offset int) ([]models.Card, error) {
 	}
 	defer rows.Close()
 
-	// Создаем пустой слайс (массив) для карточек
 	var cards []models.Card
 
-	// Проходимся по каждой строке из базы
 	for rows.Next() {
 		var c models.Card
-		// Записываем данные из SQL-строки прямо в нашу структуру
 		err := rows.Scan(&c.ID, &c.Name, &c.ImageURL, &c.CardNo, &c.Rarity, &c.Series)
+		if err != nil {
+			log.Println("❌ Ошибка при сканировании строки:", err)
+			continue
+		}
+		cards = append(cards, c)
+	}
+
+	return cards, nil
+}
+
+// GetAllCardsRankedByListings возвращает только те карточки, у которых есть
+// хотя бы одно активное объявление на рынке, отсортированные по количеству (DESC).
+func (r *CardRepo) GetAllCardsRankedByListings(limit int, offset int) ([]models.CardWithListingCount, error) {
+	query := `
+		SELECT mc.id, mc.name, mc.image_url, mc.card_no, mc.rarity, mc.series,
+		       COUNT(ml.id) AS listing_count
+		FROM master_cards mc
+		INNER JOIN market_listings ml
+			ON ml.master_card_id = mc.id AND ml.status = 'active'
+		GROUP BY mc.id, mc.name, mc.image_url, mc.card_no, mc.rarity, mc.series
+		ORDER BY listing_count DESC, mc.id
+		LIMIT $1 OFFSET $2
+	`
+
+	rows, err := r.DB.Query(query, limit, offset)
+	if err != nil {
+		log.Println("❌ Ошибка при запросе карт с рейтингом:", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var cards []models.CardWithListingCount
+
+	for rows.Next() {
+		var c models.CardWithListingCount
+		err := rows.Scan(&c.ID, &c.Name, &c.ImageURL, &c.CardNo, &c.Rarity, &c.Series, &c.ListingCount)
 		if err != nil {
 			log.Println("❌ Ошибка при сканировании строки:", err)
 			continue

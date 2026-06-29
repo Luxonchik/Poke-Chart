@@ -13,6 +13,49 @@ func NewListingRepo(db *sql.DB) *ListingRepo {
 	return &ListingRepo{DB: db}
 }
 
+// GetListingsByMasterCardID возвращает активные объявления для указанной карты
+func (r *ListingRepo) GetListingsByMasterCardID(masterCardID string) ([]models.MarketListing, error) {
+	query := `
+		SELECT id,
+		       COALESCE(external_id, ''),
+		       COALESCE(title, ''),
+		       COALESCE(price, 0),
+		       COALESCE(image_url, ''),
+		       REPLACE(COALESCE(url, ''), 'https://www.daangn.comhttps://www.daangn.com', 'https://www.daangn.com'),
+		       COALESCE(master_card_id, ''),
+		       COALESCE(status, ''),
+		       COALESCE(created_at, NOW()),
+		       COALESCE(updated_at, NOW())
+		FROM market_listings
+		WHERE master_card_id = $1 AND status = 'active'
+		ORDER BY price ASC
+	`
+
+	rows, err := r.DB.Query(query, masterCardID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var listings []models.MarketListing
+	for rows.Next() {
+		var l models.MarketListing
+		var mcID string
+		err := rows.Scan(
+			&l.ID, &l.DaangnID, &l.Title, &l.Price,
+			&l.ImageURL, &l.SourceURL, &mcID, &l.Status,
+			&l.CreatedAt, &l.UpdatedAt,
+		)
+		if err != nil {
+			continue
+		}
+		l.MasterCardID = &mcID
+		listings = append(listings, l)
+	}
+
+	return listings, nil
+}
+
 // CreateListing пытается сохранить объявление. Если оно уже есть - просто игнорирует.
 func (r *ListingRepo) CreateListing(req models.CreateListingRequest) (bool, error) {
 	// Тот самый SQL запрос, который решает проблему дублей
