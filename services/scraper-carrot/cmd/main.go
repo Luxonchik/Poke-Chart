@@ -23,14 +23,13 @@ func main() {
 
 	fmt.Println("🥕 Scraper-Carrot запущен. Начинаем мониторинг...")
 
-	// Бесконечный цикл скрапера
 	for {
 		fmt.Println("--------------------------------------------------")
 		fmt.Printf("🔍 [%s] Запрашиваем 당근마켓...\n", time.Now().Format("15:04:05"))
 
 		articles, err := scrapeService.Scrape(context.Background(), url)
 		if err != nil {
-			// Вместо log.Fatalf (который убивает программу), просто пишем ошибку и ждем
+			// log.Printf вместо log.Fatalf — не убиваем процесс на временной ошибке.
 			log.Printf("⚠️ Ошибка скрейпинга: %v\n", err)
 			time.Sleep(1 * time.Minute)
 			continue
@@ -48,14 +47,12 @@ func main() {
 			priceFloat, _ := strconv.ParseFloat(item.Price, 64)
 			priceInt := int(priceFloat)
 			
-			// Отправляем в наш API
 			output.SendToAPI(item, priceInt)
 		}
 
 		fmt.Printf("✅ Валидных покемонов отправлено в API: %d из %d\n", validCount, len(articles))
-		
-		// Засыпаем на 5 минут перед следующей проверкой
-		// 당근마켓 забанит твой IP, если будешь стучаться каждую секунду
+
+		// 5 минут — минимальный интервал, чтобы не получить бан по IP от 당근마켓.
 		fmt.Println("💤 Сплю 5 минут...")
 		time.Sleep(5 * time.Minute)
 	}

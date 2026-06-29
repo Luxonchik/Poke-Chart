@@ -8,7 +8,6 @@ import (
 	"strconv"
 )
 
-// CardHandler хранит в себе ссылку на репозиторий, чтобы уметь ходить в базу
 type CardHandler struct {
 	repo *repository.CardRepo
 }

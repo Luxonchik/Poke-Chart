@@ -10,17 +10,14 @@ import (
 	"pokechart-api/internal/models"
 )
 
-// CardRepo будет хранить подключение к БД
 type CardRepo struct {
 	DB *sql.DB
 }
 
-// NewCardRepo - конструктор для нашего репозитория
 func NewCardRepo(db *sql.DB) *CardRepo {
 	return &CardRepo{DB: db}
 }
 
-// GetAllCards делает SELECT запрос и возвращает массив карточек (с лимитом для начала)
 func (r *CardRepo) GetAllCards(limit int, offset int) ([]models.Card, error) {
 	query := `
 		SELECT id, name, image_url, card_no, rarity, series
@@ -51,8 +48,6 @@ func (r *CardRepo) GetAllCards(limit int, offset int) ([]models.Card, error) {
 	return cards, nil
 }
 
-// GetAllCardsRankedByListings возвращает только те карточки, у которых есть
-// хотя бы одно активное объявление на рынке, отсортированные по количеству (DESC).
 func (r *CardRepo) GetAllCardsRankedByListings(limit int, offset int) ([]models.CardWithListingCount, error) {
 	query := `
 		SELECT mc.id, mc.name, mc.image_url, mc.card_no, mc.rarity, mc.series,
@@ -290,12 +285,7 @@ func (r *CardRepo) FindBestByCardNoThenName(cardNo string, name string) (*models
 	return nil, fmt.Errorf("несколько карт с card_no=%s, но имя '%s' не уточнило выбор", cardNo, name)
 }
 
-// FindCardByNameAndRarity ищет официальную карту по имени и редкости
 func (r *CardRepo) FindCardByNameAndRarity(name string, rarity string) (*models.Card, error) {
-	// Пуленепробиваемый SQL-запрос:
-	// 1. LOWER() - переводит всё в нижний регистр (EX -> ex)
-	// 2. REPLACE(..., ' ', '') - удаляет все пробелы ("피카츄 ex" -> "피카츄ex")
-	// То же самое мы делаем с редкостью (SAR -> sar), на всякий случай
 	query := `
 		SELECT id, name, image_url, card_no, rarity, series 
 		FROM master_cards 

@@ -16,7 +16,6 @@ import (
 	"pokechart-api/internal/models"
 )
 
-// VisionResult - структура того, что мы ждем от ИИ
 type VisionResult struct {
 	IsPokemonCard bool   `json:"is_pokemon_card"`
 	Name          string `json:"name"`
@@ -200,7 +199,7 @@ func ResolveMasterCardByImages(listingImageURL string, candidates []models.Card)
 		return nil, fmt.Errorf("нужно минимум 2 кандидата для сравнения")
 	}
 	if len(candidates) > 3 {
-		candidates = candidates[:3] // hard cap to control token/image size + cost
+		candidates = candidates[:3] // cap: контроль размера токенов и стоимости
 	}
 
 	apiKey := os.Getenv("GEMINI_API_KEY")
@@ -211,7 +210,6 @@ func ResolveMasterCardByImages(listingImageURL string, candidates []models.Card)
 
 	client := &http.Client{Timeout: 60 * time.Second}
 
-	// Download listing image + candidate images as inlineData.
 	const maxImageBytes = 3_500_000
 	listingInline, err := downloadAsInlineData(client, listingImageURL, maxImageBytes)
 	if err != nil {
@@ -376,7 +374,6 @@ func RecognizeCard(imageURL string) (*VisionResult, error) {
 		return nil, fmt.Errorf("не удалось сериализовать запрос Gemini: %w", err)
 	}
 
-	// 3) Call Gemini
 	endpoint := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent", modelName)
 	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(jsonBytes))
 	if err != nil {

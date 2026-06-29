@@ -13,7 +13,6 @@ func NewListingRepo(db *sql.DB) *ListingRepo {
 	return &ListingRepo{DB: db}
 }
 
-// GetListingsByMasterCardID возвращает активные объявления для указанной карты
 func (r *ListingRepo) GetListingsByMasterCardID(masterCardID string) ([]models.MarketListing, error) {
 	query := `
 		SELECT id,
@@ -56,9 +55,8 @@ func (r *ListingRepo) GetListingsByMasterCardID(masterCardID string) ([]models.M
 	return listings, nil
 }
 
-// CreateListing пытается сохранить объявление. Если оно уже есть - просто игнорирует.
+// CreateListing вставляет объявление; при дубле (ON CONFLICT) дозаполняет пустые поля и возвращает false.
 func (r *ListingRepo) CreateListing(req models.CreateListingRequest) (bool, error) {
-	// Тот самый SQL запрос, который решает проблему дублей
 	query := `
 		INSERT INTO market_listings (
 			external_id,
@@ -88,13 +86,12 @@ func (r *ListingRepo) CreateListing(req models.CreateListingRequest) (bool, erro
 		return false, err
 	}
 
-	// Проверяем, вставилась ли новая строка
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return false, err
 	}
 
-	// Если запись уже была, дозаполняем недостающие поля.
+	// Дубль: дозаполняем поля, которые могли быть пустыми при первой вставке.
 	if rowsAffected == 0 {
 		updateQuery := `
 			UPDATE market_listings
@@ -109,6 +106,5 @@ func (r *ListingRepo) CreateListing(req models.CreateListingRequest) (bool, erro
 		}
 	}
 
-	// Вернет true, если это новое объявление, и false, если дубликат
 	return rowsAffected > 0, nil
 }

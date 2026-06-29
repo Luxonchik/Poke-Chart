@@ -13,7 +13,6 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// Прослойка для работы фронтенда (CORS)
 func enableCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -30,7 +29,6 @@ func enableCORS(next http.Handler) http.Handler {
 }
 
 func main() {
-	// 1. Загружаем переменные окружения (для будущего ключа OpenAI)
 	if err := godotenv.Load(); err != nil {
 		fmt.Println("⚠️ Файл .env не найден, надеемся, что переменные среды заданы в системе")
 	}
