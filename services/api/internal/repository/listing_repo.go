@@ -2,6 +2,8 @@ package repository
 
 import (
 	"database/sql"
+
+	"github.com/lib/pq"
 	"pokechart-api/internal/models"
 )
 
@@ -14,13 +16,14 @@ func NewListingRepo(db *sql.DB) *ListingRepo {
 }
 
 func (r *ListingRepo) GetListingsByMasterCardID(masterCardID string) ([]models.MarketListing, error) {
-	query := `
+	const q = `
 		SELECT id,
+		       COALESCE(source, 'daangn'),
 		       COALESCE(external_id, ''),
 		       COALESCE(title, ''),
 		       COALESCE(price, 0),
 		       COALESCE(image_url, ''),
-		       REPLACE(COALESCE(url, ''), 'https://www.daangn.comhttps://www.daangn.com', 'https://www.daangn.com'),
+		       COALESCE(url, ''),
 		       COALESCE(master_card_id, ''),
 		       COALESCE(status, ''),
 		       COALESCE(created_at, NOW()),
@@ -29,8 +32,7 @@ func (r *ListingRepo) GetListingsByMasterCardID(masterCardID string) ([]models.M
 		WHERE master_card_id = $1 AND status = 'active'
 		ORDER BY price ASC
 	`
-
-	rows, err := r.DB.Query(query, masterCardID)
+	rows, err := r.DB.Query(q, masterCardID)
 	if err != nil {
 		return nil, err
 	}
@@ -40,71 +42,79 @@ func (r *ListingRepo) GetListingsByMasterCardID(masterCardID string) ([]models.M
 	for rows.Next() {
 		var l models.MarketListing
 		var mcID string
-		err := rows.Scan(
-			&l.ID, &l.DaangnID, &l.Title, &l.Price,
+		if err := rows.Scan(
+			&l.ID, &l.Source, &l.ExternalID, &l.Title, &l.Price,
 			&l.ImageURL, &l.SourceURL, &mcID, &l.Status,
 			&l.CreatedAt, &l.UpdatedAt,
-		)
-		if err != nil {
-			continue
+		); err != nil {
+			return nil, err
 		}
 		l.MasterCardID = &mcID
 		listings = append(listings, l)
 	}
-
-	return listings, nil
+	return listings, rows.Err()
 }
 
-// CreateListing вставляет объявление; при дубле (ON CONFLICT) дозаполняет пустые поля и возвращает false.
-func (r *ListingRepo) CreateListing(req models.CreateListingRequest) (bool, error) {
-	query := `
-		INSERT INTO market_listings (
-			external_id,
-			title,
-			price,
-			image_url,
-			url,
-			status,
-			created_at,
-			boosted_at
-		)
-		VALUES ($1, $2, $3, $4, $5, 'pending', NULLIF($6, '')::timestamp, NULLIF($7, '')::timestamp)
-		ON CONFLICT (external_id) DO NOTHING
-	`
-
-	result, err := r.DB.Exec(
-		query,
-		req.DaangnID,
-		req.Title,
-		req.Price,
-		req.ImageURL,
-		req.SourceURL,
-		req.CreatedAt,
-		req.BoostedAt,
-	)
-	if err != nil {
-		return false, err
+// SyncListings делает diff текущего снимка с БД:
+//   - новые объявления → INSERT status='pending'
+//   - существующие     → UPDATE цены и метаданных (статус не трогаем)
+//   - исчезнувшие active → UPDATE status='closed'
+func (r *ListingRepo) SyncListings(source string, listings []models.RawListing) (models.SyncResult, error) {
+	var result models.SyncResult
+	if len(listings) == 0 {
+		return result, nil
 	}
 
-	rowsAffected, err := result.RowsAffected()
+	tx, err := r.DB.Begin()
 	if err != nil {
-		return false, err
+		return result, err
 	}
+	defer tx.Rollback()
 
-	// Дубль: дозаполняем поля, которые могли быть пустыми при первой вставке.
-	if rowsAffected == 0 {
-		updateQuery := `
-			UPDATE market_listings
-			SET
-				image_url = COALESCE(NULLIF(image_url, ''), NULLIF($2, '')),
-				created_at = COALESCE(created_at, NULLIF($3, '')::timestamp),
-				boosted_at = COALESCE(boosted_at, NULLIF($4, '')::timestamp)
-			WHERE external_id = $1
-		`
-		if _, err := r.DB.Exec(updateQuery, req.DaangnID, req.ImageURL, req.CreatedAt, req.BoostedAt); err != nil {
-			return false, err
+	externalIDs := make([]string, 0, len(listings))
+
+	for _, l := range listings {
+		externalIDs = append(externalIDs, l.ExternalID)
+
+		var isNew bool
+		err := tx.QueryRow(`
+			INSERT INTO market_listings
+			    (source, external_id, title, price, image_url, url, status, created_at, boosted_at)
+			VALUES
+			    ($1, $2, $3, $4, $5, $6, 'pending', NULLIF($7,'')::timestamp, NULLIF($8,'')::timestamp)
+			ON CONFLICT (source, external_id) DO UPDATE SET
+			    price      = EXCLUDED.price,
+			    image_url  = COALESCE(NULLIF(EXCLUDED.image_url,''), market_listings.image_url),
+			    boosted_at = COALESCE(EXCLUDED.boosted_at, market_listings.boosted_at),
+			    updated_at = NOW()
+			RETURNING (xmax = 0)
+		`, source, l.ExternalID, l.Title, l.Price, l.ImageURL, l.SourceURL,
+			l.CreatedAt, l.BoostedAt,
+		).Scan(&isNew)
+		if err != nil {
+			return result, err
+		}
+		if isNew {
+			result.New++
+		} else {
+			result.Updated++
 		}
 	}
 
-	return rowsAffected > 0, nil
+	// Закрываем active-объявления, которых больше нет в свежем снимке
+	res, err := tx.Exec(`
+		UPDATE market_listings
+		SET status = 'closed', closed_at = NOW(), updated_at = NOW()
+		WHERE source = $1
+		  AND status = 'active'
+		  AND NOT (external_id = ANY($2))
+	`, source, pq.Array(externalIDs))
+	if err != nil {
+		return result, err
+	}
+
+	closed, _ := res.RowsAffected()
+	result.Closed = int(closed)
+
+	return result, tx.Commit()
 }

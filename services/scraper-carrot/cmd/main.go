@@ -3,57 +3,41 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
-	"strconv"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"scraper-carrot/internal/client"
 	"scraper-carrot/internal/filter"
 	"scraper-carrot/internal/output"
 	"scraper-carrot/internal/service"
+	"scraper-carrot/internal/worker"
 )
 
 func main() {
-	url := "https://www.daangn.com/kr/buy-sell/s/?in=역삼동-6035&search=포켓몬+EX"
+	searchURL := getEnv("DAANGN_SEARCH_URL", "https://www.daangn.com/kr/buy-sell/s/?in=역삼동-6035&search=포켓몬+EX")
+	apiURL := getEnv("API_URL", "http://localhost:8080")
 
 	daangnClient := client.NewDaangnClient(&http.Client{Timeout: 10 * time.Second})
-	cardFilter := filter.NewCardFilter()
-	scrapeService := service.NewScrapeService(daangnClient, cardFilter)
+	scrapeService := service.NewScrapeService(daangnClient, filter.NewCardFilter())
+	apiClient := output.NewAPIClient(apiURL)
 
-	fmt.Println("🥕 Scraper-Carrot запущен. Начинаем мониторинг...")
+	// 5 минут — минимальный интервал, чтобы не получить бан от 당근마켓
+	scrapeWorker := worker.NewScrapeWorker(scrapeService, apiClient, "daangn", searchURL, 5*time.Minute)
 
-	for {
-		fmt.Println("--------------------------------------------------")
-		fmt.Printf("🔍 [%s] Запрашиваем 당근마켓...\n", time.Now().Format("15:04:05"))
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
-		articles, err := scrapeService.Scrape(context.Background(), url)
-		if err != nil {
-			// log.Printf вместо log.Fatalf — не убиваем процесс на временной ошибке.
-			log.Printf("⚠️ Ошибка скрейпинга: %v\n", err)
-			time.Sleep(1 * time.Minute)
-			continue
-		}
+	fmt.Printf("🥕 Scraper-Carrot запущен. URL: %s\n", searchURL)
+	scrapeWorker.Start(ctx)
+	fmt.Println("👋 Scraper-Carrot остановлен")
+}
 
-		fmt.Printf("📦 Получено сырых объявлений: %d\n", len(articles))
-		validCount := 0
-
-		for _, item := range articles {
-			if !cardFilter.IsValid(item) {
-				continue 
-			}
-			
-			validCount++
-			priceFloat, _ := strconv.ParseFloat(item.Price, 64)
-			priceInt := int(priceFloat)
-			
-			output.SendToAPI(item, priceInt)
-		}
-
-		fmt.Printf("✅ Валидных покемонов отправлено в API: %d из %d\n", validCount, len(articles))
-
-		// 5 минут — минимальный интервал, чтобы не получить бан по IP от 당근마켓.
-		fmt.Println("💤 Сплю 5 минут...")
-		time.Sleep(5 * time.Minute)
+func getEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
 	}
+	return fallback
 }

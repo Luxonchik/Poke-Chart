@@ -2,8 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
+
 	"pokechart-api/internal/models"
 	"pokechart-api/internal/repository"
 )
@@ -25,7 +26,8 @@ func (h *ListingHandler) GetListingsForCard(w http.ResponseWriter, r *http.Reque
 
 	listings, err := h.repo.GetListingsByMasterCardID(cardID)
 	if err != nil {
-		http.Error(w, "Ошибка при получении листингов", http.StatusInternalServerError)
+		log.Printf("❌ GetListingsByMasterCardID: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -34,34 +36,7 @@ func (h *ListingHandler) GetListingsForCard(w http.ResponseWriter, r *http.Reque
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(listings)
-}
-
-func (h *ListingHandler) ReceiveFromScraper(w http.ResponseWriter, r *http.Request) {
-	var reqBody models.CreateListingRequest
-
-	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
-		http.Error(w, "Ошибка чтения JSON", http.StatusBadRequest)
-		return
-	}
-
-	if reqBody.DaangnID == "" {
-		http.Error(w, "Отсутствует daangn_id", http.StatusBadRequest)
-		return
-	}
-
-	isNew, err := h.repo.CreateListing(reqBody)
-	if err != nil {
-		http.Error(w, "Ошибка базы данных: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if isNew {
-		w.WriteHeader(http.StatusCreated)
-		fmt.Fprintf(w, `{"status": "saved", "message": "Новое объявление добавлено в очередь"}`)
-	} else {
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{"status": "ignored", "message": "Объявление уже существует"}`)
+	if err := json.NewEncoder(w).Encode(listings); err != nil {
+		log.Printf("❌ JSON encode: %v", err)
 	}
 }

@@ -26,11 +26,7 @@ func NewDaangnClient(httpClient *http.Client) *DaangnClient {
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
-
-	return &DaangnClient{
-		httpClient: httpClient,
-		userAgent:  defaultUserAgent,
-	}
+	return &DaangnClient{httpClient: httpClient, userAgent: defaultUserAgent}
 }
 
 func (c *DaangnClient) FetchSearchPage(ctx context.Context, url string) ([]byte, error) {
@@ -38,7 +34,6 @@ func (c *DaangnClient) FetchSearchPage(ctx context.Context, url string) ([]byte,
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
-
 	req.Header.Set("User-Agent", c.userAgent)
 
 	resp, err := c.httpClient.Do(req)
@@ -48,23 +43,23 @@ func (c *DaangnClient) FetchSearchPage(ctx context.Context, url string) ([]byte,
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return nil, fmt.Errorf("unexpected status: %d", resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("read response body: %w", err)
+		return nil, fmt.Errorf("read body: %w", err)
 	}
-
 	return body, nil
 }
 
-func (c *DaangnClient) FetchArticlesWithPoW(
-	ctx context.Context,
-	pow models.RemixContext,
-) ([]models.Article, error) {
+func (c *DaangnClient) FetchArticlesWithPoW(ctx context.Context, pow models.RemixContext) ([]models.Article, error) {
 	route := pow.State.LoaderData.Route
-	nonce := computePoWNonce(route.PoW.Challenge, route.PoW.Difficulty)
+
+	nonce, err := computePoWNonce(route.PoW.Challenge, route.PoW.Difficulty)
+	if err != nil {
+		return nil, fmt.Errorf("pow solve: %w", err)
+	}
 
 	params := url.Values{}
 	params.Set("region_id", route.CurrentFilters.RegionID)
@@ -87,7 +82,6 @@ func (c *DaangnClient) FetchArticlesWithPoW(
 	if err != nil {
 		return nil, fmt.Errorf("create pow request: %w", err)
 	}
-
 	req.Header.Set("User-Agent", c.userAgent)
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Referer", "https://www.daangn.com/")
@@ -107,21 +101,21 @@ func (c *DaangnClient) FetchArticlesWithPoW(
 	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
 		return nil, fmt.Errorf("decode pow response: %w", err)
 	}
-
 	return apiResp.FleamarketArticles, nil
 }
 
-func computePoWNonce(challenge string, difficulty int) int {
-	if difficulty <= 0 {
-		return 0
-	}
+const powMaxIter = 10_000_000
 
-	targetPrefix := strings.Repeat("0", difficulty)
-	for nonce := 0; ; nonce++ {
-		hash := sha256.Sum256([]byte(fmt.Sprintf("%s:%d", challenge, nonce)))
-		hashHex := hex.EncodeToString(hash[:])
-		if strings.HasPrefix(hashHex, targetPrefix) {
-			return nonce
+func computePoWNonce(challenge string, difficulty int) (int, error) {
+	if difficulty <= 0 {
+		return 0, nil
+	}
+	target := strings.Repeat("0", difficulty)
+	for nonce := range powMaxIter {
+		hash := sha256.Sum256(fmt.Appendf(nil, "%s:%d", challenge, nonce))
+		if strings.HasPrefix(hex.EncodeToString(hash[:]), target) {
+			return nonce, nil
 		}
 	}
+	return 0, fmt.Errorf("PoW не решён за %d итераций (difficulty=%d)", powMaxIter, difficulty)
 }

@@ -1,21 +1,18 @@
 package routes
 
 import (
-    "net/http"
-    "pokechart-api/internal/handlers"
-    "pokechart-api/internal/repository"
-    "database/sql"
+	"net/http"
+
+	"pokechart-api/internal/handlers"
+	"pokechart-api/internal/repository"
 )
 
-func Setup(mux *http.ServeMux, db *sql.DB) {
-    cardRepo := repository.NewCardRepo(db)
-    cardHandler := handlers.NewCardHandler(cardRepo)
+func Setup(mux *http.ServeMux, cardRepo *repository.CardRepo, listingRepo *repository.ListingRepo) {
+	cardHandler := handlers.NewCardHandler(cardRepo)
+	listingHandler := handlers.NewListingHandler(listingRepo)
+	syncHandler := handlers.NewSyncHandler(listingRepo)
 
-    listingRepo := repository.NewListingRepo(db)
-    listingHandler := handlers.NewListingHandler(listingRepo)
-
-    mux.HandleFunc("GET /api/cards", cardHandler.GetCards)
-    mux.HandleFunc("GET /api/cards/{cardId}/listings", listingHandler.GetListingsForCard)
-    mux.HandleFunc("POST /api/test-vision", handlers.TestVisionHandler)
-    mux.HandleFunc("POST /api/listings", listingHandler.ReceiveFromScraper)
+	mux.HandleFunc("GET /api/cards", cardHandler.GetCards)
+	mux.HandleFunc("GET /api/cards/{cardId}/listings", listingHandler.GetListingsForCard)
+	mux.HandleFunc("POST /api/sync", syncHandler.Sync)
 }

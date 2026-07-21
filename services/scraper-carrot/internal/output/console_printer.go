@@ -7,81 +7,100 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"scraper-carrot/internal/models"
 )
 
-// func PrintSummary(count int) {
-// 	fmt.Printf("Успешно найдено карточек: %d\n", count)
-// 	fmt.Println("--------------------------------------------------")
-// }
+type APIClient struct {
+	baseURL    string
+	httpClient *http.Client
+}
 
-// func PrintArticle(item models.Article) {
-// 	priceFloat, _ := strconv.ParseFloat(item.Price, 64)
-// 	priceInt := int(priceFloat)
+func NewAPIClient(baseURL string) *APIClient {
+	return &APIClient{
+		baseURL:    strings.TrimRight(baseURL, "/"),
+		httpClient: &http.Client{},
+	}
+}
 
-// 	createdAtTime, err := time.Parse(time.RFC3339, item.CreatedAt)
-// 	if err != nil {
-// 		log.Printf("Ошибка парсинга даты: %v", err)
-// 	}
+// SyncResult — ответ API после синхронизации.
+type SyncResult struct {
+	New     int `json:"new"`
+	Updated int `json:"updated"`
+	Closed  int `json:"closed"`
+}
 
-// 	boostedAtTime, err := time.Parse(time.RFC3339, item.BoostedAt)
-// 	if err != nil {
-// 		log.Printf("Ошибка парсинга даты буста: %v", err)
-// 	}
+type rawListing struct {
+	ExternalID string `json:"external_id"`
+	Title      string `json:"title"`
+	Price      int    `json:"price"`
+	ImageURL   string `json:"image_url"`
+	SourceURL  string `json:"source_url"`
+	CreatedAt  string `json:"created_at"`
+	BoostedAt  string `json:"boosted_at"`
+}
 
-// 	fmt.Printf("Название: %s\n", item.Title)
-// 	fmt.Printf("Цена: %d KRW\n", priceInt)
-// 	fmt.Printf("Статус: %s\n", item.Status)
-// 	fmt.Printf("Картинка: %s\n", item.Thumbnail)
-// 	fmt.Printf("Ссылка: %s\n", item.Href)
-// 	fmt.Printf("Дата создания: %s\n", createdAtTime.Format("2006-01-02 15:04:05"))
-// 	fmt.Printf("Дата буста: %s\n", boostedAtTime.Format("2006-01-02 15:04:05"))
-// 	fmt.Println("--------------------------------------------------")
-// }
+type syncPayload struct {
+	Source   string       `json:"source"`
+	Listings []rawListing `json:"listings"`
+}
 
+// SyncListings отправляет весь текущий снимок объявлений одним запросом.
+// API сам разберёт что новое, что обновилось, что закрылось.
+func (c *APIClient) SyncListings(source string, articles []models.Article) (SyncResult, error) {
+	listings := make([]rawListing, 0, len(articles))
+	for _, a := range articles {
+		price, err := parsePrice(a.Price)
+		if err != nil {
+			log.Printf("⚠️ Не удалось распарсить цену '%s' для '%s': %v", a.Price, a.Title, err)
+		}
+		listings = append(listings, rawListing{
+			ExternalID: a.ID,
+			Title:      a.Title,
+			Price:      price,
+			ImageURL:   a.Thumbnail,
+			SourceURL:  ensureAbsoluteURL(a.Href),
+			CreatedAt:  a.CreatedAt,
+			BoostedAt:  a.BoostedAt,
+		})
+	}
+
+	body, err := json.Marshal(syncPayload{Source: source, Listings: listings})
+	if err != nil {
+		return SyncResult{}, fmt.Errorf("marshal: %w", err)
+	}
+
+	resp, err := c.httpClient.Post(c.baseURL+"/api/sync", "application/json", bytes.NewBuffer(body))
+	if err != nil {
+		return SyncResult{}, fmt.Errorf("post /api/sync: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(resp.Body)
+		return SyncResult{}, fmt.Errorf("api вернул %d: %s", resp.StatusCode, string(raw))
+	}
+
+	var result SyncResult
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return SyncResult{}, fmt.Errorf("decode response: %w", err)
+	}
+	return result, nil
+}
+
+func parsePrice(raw string) (int, error) {
+	f, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return 0, err
+	}
+	return int(f), nil
+}
 
 func ensureAbsoluteURL(href string) string {
-	if strings.HasPrefix(href, "https://") || strings.HasPrefix(href, "http://") {
+	if strings.HasPrefix(href, "http://") || strings.HasPrefix(href, "https://") {
 		return href
 	}
 	return "https://www.daangn.com" + href
-}
-
-func SendToAPI(item models.Article, priceInt int) {
-	// 1. Собираем данные ровно в том формате, который ждет наш API
-	payload := map[string]interface{}{
-		"daangn_id":  item.ID,
-		"title":      item.Title,
-		"price":      priceInt, // Отправляем как число
-		"image_url":  item.Thumbnail,
-		"source_url": ensureAbsoluteURL(item.Href),
-		"created_at": item.CreatedAt,
-		"boosted_at": item.BoostedAt,
-	}
-
-	jsonData, err := json.Marshal(payload)
-	if err != nil {
-		log.Printf("Ошибка маршалинга JSON: %v", err)
-		return
-	}
-
-	response, err := http.Post("http://localhost:8080/api/listings", "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		log.Printf("❌ Ошибка отправки запроса: %v", err)
-		return
-	}
-	defer response.Body.Close()
-
-	// 2. Обрабатываем два успешных статуса (200 и 201)
-	if response.StatusCode == http.StatusCreated {
-		fmt.Printf("✅ [НОВОЕ] Отправлено в очередь: %s\n", item.Title)
-	} else if response.StatusCode == http.StatusOK {
-		fmt.Printf("⏭️ [ДУБЛЬ] Пропущено сервером: %s\n", item.Title)
-	} else {
-		// Читаем текст ошибки от сервера, чтобы понимать, что пошло не так
-		bodyBytes, _ := io.ReadAll(response.Body)
-		log.Printf("⚠️ Ошибка сервера %d: %s", response.StatusCode, string(bodyBytes))
-	}
 }

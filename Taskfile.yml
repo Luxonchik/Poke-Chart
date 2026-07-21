@@ -19,7 +19,7 @@ tasks:
   web:
     dir: web
     cmds:
-      - npm run dev -- -p 3001
+      - npm run dev -- -p 4000
 
   # Запустить всё сразу параллельно
   default:
