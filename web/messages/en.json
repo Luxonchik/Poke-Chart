@@ -1,13 +1,46 @@
 {
+  "header": {
+    "market": "Market",
+    "catalog": "Catalog"
+  },
   "landing": {
-    "title": "Trending in Korea",
-    "subtitle": "Live local prices across Korean marketplaces"
+    "title": "On the market now",
+    "subtitle": "Cards with live listings on Korean marketplaces",
+    "stats": {
+      "cardsTracked": "Cards tracked",
+      "activeListings": "Active listings",
+      "aiProcessed": "Processed by AI",
+      "lastSync": "Last sync"
+    }
   },
   "cards": {
     "loading": "Loading...",
     "error": "Failed to load cards",
     "loadingMore": "Loading more...",
-    "noMore": "All cards loaded"
+    "noMore": "All cards loaded",
+    "title": "Card database",
+    "listingCount": "{count, plural, one {# listing} other {# listings}}",
+    "columns": {
+      "image": "Image",
+      "card": "Card",
+      "number": "No.",
+      "lowestPrice": "Lowest price",
+      "listings": "Listings"
+    },
+    "empty": "No cards match “{query}”",
+    "variants": "{count} versions",
+    "total": "{count} cards",
+    "searchLabel": "Search cards",
+    "searchPlaceholder": "Search by name or card number",
+    "onSale": "On sale",
+    "notOnSale": "Not on sale",
+    "noData": "No data",
+    "emptyFiltered": "No cards on sale right now",
+    "view": {
+      "label": "View",
+      "grid": "Grid",
+      "table": "Table"
+    }
   },
   "cardDetail": {
     "priceHistory": "Price history",
@@ -24,6 +57,8 @@
       "nearMint": "Near Mint",
       "excellent": "Excellent",
       "good": "Good"
-    }
+    },
+    "noHistoryTitle": "Price history coming soon",
+    "noHistoryHint": "Not enough market data for this card yet"
   }
 }

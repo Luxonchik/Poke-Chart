@@ -22,7 +22,7 @@ export function MarketplaceListings({ listings }: MarketplaceListingsProps) {
           href={listing.source_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2.5 hover:bg-white/10 transition-colors"
+          className="flex items-center gap-3 rounded-xl bg-muted px-3 py-2.5 hover:bg-accent transition-colors"
         >
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white bg-[#FF8A00]">
             당
@@ -30,7 +30,7 @@ export function MarketplaceListings({ listings }: MarketplaceListingsProps) {
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-white truncate">
+              <span className="text-sm font-medium text-foreground truncate">
                 {listing.title}
               </span>
               {listing.price === lowestPrice && (
@@ -44,7 +44,7 @@ export function MarketplaceListings({ listings }: MarketplaceListingsProps) {
             </span>
           </div>
 
-          <span className="text-sm font-semibold text-white whitespace-nowrap">
+          <span className="text-sm font-semibold text-foreground whitespace-nowrap">
             {format.number(listing.price, {
               style: "currency",
               currency: "KRW",

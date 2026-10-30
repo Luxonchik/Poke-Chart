@@ -8,6 +8,20 @@ interface ModalState {
   closeModal: () => void;
 }
 
+interface CatalogFilterState {
+  query: string;
+  onSale: boolean;
+  setQuery: (query: string) => void;
+  toggleOnSale: () => void;
+}
+
+export const useCatalogFilterStore = create<CatalogFilterState>((set) => ({
+  query: "",
+  onSale: false,
+  setQuery: (query) => set({ query }),
+  toggleOnSale: () => set((s) => ({ onSale: !s.onSale })),
+}));
+
 export const useModalStore = create<ModalState>((set) => ({
   activeModal: null,
   selectedCard: null,

@@ -1,13 +1,46 @@
 {
+  "header": {
+    "market": "마켓",
+    "catalog": "카탈로그"
+  },
   "landing": {
-    "title": "한국 인기 카드",
-    "subtitle": "국내 마켓플레이스 실시간 시세"
+    "title": "지금 판매 중",
+    "subtitle": "국내 마켓플레이스에 매물이 있는 카드",
+    "stats": {
+      "cardsTracked": "추적 중인 카드",
+      "activeListings": "판매 중 매물",
+      "aiProcessed": "AI 분석 완료",
+      "lastSync": "마지막 수집"
+    }
   },
   "cards": {
     "loading": "불러오는 중...",
     "error": "카드를 불러오지 못했습니다",
     "loadingMore": "더 불러오는 중...",
-    "noMore": "모든 카드를 불러왔습니다"
+    "noMore": "모든 카드를 불러왔습니다",
+    "title": "카드 데이터베이스",
+    "listingCount": "매물 {count}개",
+    "columns": {
+      "image": "이미지",
+      "card": "카드",
+      "number": "번호",
+      "lowestPrice": "최저가",
+      "listings": "매물"
+    },
+    "empty": "“{query}”에 해당하는 카드가 없습니다",
+    "variants": "{count}개 버전",
+    "total": "카드 {count}장",
+    "searchLabel": "카드 검색",
+    "searchPlaceholder": "카드 이름 또는 번호로 검색",
+    "onSale": "판매 중",
+    "notOnSale": "판매 없음",
+    "noData": "데이터 없음",
+    "emptyFiltered": "현재 판매 중인 카드가 없습니다",
+    "view": {
+      "label": "보기",
+      "grid": "그리드",
+      "table": "테이블"
+    }
   },
   "cardDetail": {
     "priceHistory": "가격 변동",
@@ -24,6 +57,8 @@
       "nearMint": "준민트",
       "excellent": "우수",
       "good": "양호"
-    }
+    },
+    "noHistoryTitle": "가격 기록 준비 중",
+    "noHistoryHint": "아직 이 카드의 시세 데이터가 충분하지 않습니다"
   }
 }

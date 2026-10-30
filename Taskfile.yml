@@ -23,4 +23,4 @@ tasks:
 
   # Запустить всё сразу параллельно
   default:
-    deps: [api, web]
+    deps: [api, web, db, scraper]

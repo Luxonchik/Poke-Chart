@@ -1,12 +1,17 @@
-import { InfiniteCardGrid } from "@/components/cards/InfiniteCardGrid";
 import { CardDetailModal } from "@/components/cards/CardDetailModal";
+import { CatalogSection } from "@/components/features/landing/CatalogSection";
+import { StatsBar } from "@/components/features/landing/StatsBar";
 import { Trending } from "@/components/features/landing/Trending";
+import { Container } from "@/components/layout/Container";
 
 export default function Home() {
   return (
-    <main className="max-w-7xl mx-auto px-7 pt-8 pb-20">
-      <Trending />
-      <InfiniteCardGrid />
+    <main>
+      <StatsBar />
+      <Container className="pt-10 pb-20">
+        <Trending />
+        <CatalogSection />
+      </Container>
       <CardDetailModal />
     </main>
   );

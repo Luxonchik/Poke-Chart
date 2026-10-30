@@ -15,3 +15,10 @@ postgres_data/
 # OS
 .DS_Store
 .env
+.env.prod
+
+# Local editor / agent settings
+**/.claude/settings.local.json
+
+# Saved marketplace pages (debugging only)
+services/scraper-carrot/*.html

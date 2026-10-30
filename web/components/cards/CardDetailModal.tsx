@@ -3,11 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { useTranslations, useFormatter } from "next-intl";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -40,26 +36,34 @@ export function CardDetailModal() {
 
   if (!selectedCard) return null;
 
-  const lowestListingPrice = listings && listings.length > 0
-    ? Math.min(...listings.map((l) => l.price))
-    : null;
+  const lowestListingPrice =
+    listings && listings.length > 0
+      ? Math.min(...listings.map((l) => l.price))
+      : null;
 
   const currentPrice = priceHistory?.[priceHistory.length - 1]?.price;
   const oldPrice = priceHistory?.[0]?.price;
   const priceChange =
-    currentPrice && oldPrice ? ((currentPrice - oldPrice) / oldPrice) * 100 : null;
+    currentPrice && oldPrice
+      ? ((currentPrice - oldPrice) / oldPrice) * 100
+      : null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) closeModal(); }}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) closeModal();
+      }}
+    >
       <DialogContent
-        className="sm:max-w-3xl bg-[#14141b] border-white/10 text-white p-0 gap-0 overflow-hidden"
+        className="sm:max-w-3xl bg-card text-card-foreground p-0 gap-0 overflow-hidden"
         showCloseButton
       >
         <DialogTitle className="sr-only">{selectedCard.name}</DialogTitle>
 
         <div className="grid gap-0 md:grid-cols-[1fr_1.5fr]">
           {/* Left — card preview */}
-          <div className="flex flex-col gap-4 bg-[#0c0c11] p-5">
+          <div className="flex flex-col gap-4 bg-background p-5">
             <div className="relative aspect-[20/27] overflow-hidden rounded-xl">
               <Image
                 src={selectedCard.image_url}
@@ -71,7 +75,7 @@ export function CardDetailModal() {
             </div>
             <Button
               variant="outline"
-              className="w-full border-white/10 text-white hover:bg-white/5"
+              className="w-full"
             >
               {t("viewFullDetails")}
             </Button>
@@ -83,10 +87,12 @@ export function CardDetailModal() {
             <div>
               <h2 className="text-xl font-bold">{selectedCard.name}</h2>
               <div className="mt-1 flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">{selectedCard.series}</span>
+                <span className="text-sm text-muted-foreground">
+                  {selectedCard.series}
+                </span>
                 <Badge
                   variant="secondary"
-                  className="bg-white/10 text-white/70 border-0 text-xs"
+                  className="border-0 font-mono text-xs"
                 >
                   {selectedCard.rarity}
                 </Badge>
@@ -125,15 +131,32 @@ export function CardDetailModal() {
                     className={cn(
                       "px-3 py-1 text-xs font-medium rounded-lg transition-colors",
                       period === p
-                        ? "bg-white/15 text-white"
-                        : "text-muted-foreground hover:text-white hover:bg-white/5"
+                        ? "bg-accent text-foreground"
+                        : "text-muted-foreground hover:bg-accent hover:text-foreground",
                     )}
                   >
                     {t(PERIOD_LABEL_KEYS[p])}
                   </button>
                 ))}
               </div>
-              {priceHistory && <PriceHistoryChart data={priceHistory} />}
+              {priceHistory && (
+                <div className="relative">
+                  <div
+                    className="pointer-events-none select-none opacity-40 blur-[2px] grayscale"
+                    aria-hidden
+                  >
+                    <PriceHistoryChart data={priceHistory} />
+                  </div>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-center">
+                    <span className="text-sm font-medium text-foreground">
+                      {t("noHistoryTitle")}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {t("noHistoryHint")}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Marketplace listings */}

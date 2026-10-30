@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useFormatter, useTranslations } from "next-intl";
 import type { PokemonCard as PokemonCardType } from "@/lib/types";
 import { useModalStore } from "@/lib/store";
 import { useCardTilt } from "./useCardTilt";
@@ -10,8 +11,11 @@ interface PokemonCardProps {
 }
 
 export function PokemonCard({ card }: PokemonCardProps) {
-  const { cardRef, foilRef, glareRef, onMouseMove, onMouseLeave } = useCardTilt();
+  const { cardRef, foilRef, glareRef, onMouseMove, onMouseLeave } =
+    useCardTilt();
   const openCardDetail = useModalStore((s) => s.openCardDetail);
+  const t = useTranslations("cards");
+  const format = useFormatter();
 
   return (
     <div className="perspective-[800px]">
@@ -20,19 +24,19 @@ export function PokemonCard({ card }: PokemonCardProps) {
         onMouseMove={onMouseMove}
         onMouseLeave={onMouseLeave}
         onClick={() => openCardDetail(card)}
-        className="cursor-pointer overflow-hidden rounded-2xl bg-[#14141b] p-3.5 transition-transform duration-150 ease-out"
+        className="cursor-pointer overflow-hidden rounded-md border border-border bg-card transition-transform duration-150 ease-out"
         style={{ transformStyle: "preserve-3d" }}
       >
         <div
-          className="relative isolate overflow-hidden rounded-xl aspect-[20/27]"
+          className="relative isolate aspect-[63/88] overflow-hidden"
           style={{ transformStyle: "flat" }}
         >
           <Image
             src={card.image_url}
             alt={card.name}
             fill
-            className="object-contain"
-            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 20vw"
+            className="object-cover"
+            sizes="240px"
           />
 
           <div
@@ -46,20 +50,24 @@ export function PokemonCard({ card }: PokemonCardProps) {
           />
         </div>
 
-        <div className="mt-2.5 px-0.5 pb-0.5">
-          <h3 className="text-sm font-semibold leading-tight truncate text-white">
+        <div className="flex flex-col gap-1 px-2.5 py-2">
+          <h3 className="truncate text-sm font-semibold text-foreground">
             {card.name}
           </h3>
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground truncate">
-              {card.series}
-            </p>
-            {card.listing_count > 0 && (
-              <span className="text-[10px] font-medium text-green-400 bg-green-500/15 px-1.5 py-0.5 rounded-md shrink-0 ml-1">
-                {card.listing_count}
+          {card.min_price != null && (
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-sm font-medium tabular-nums text-foreground">
+                {format.number(card.min_price, {
+                  style: "currency",
+                  currency: "KRW",
+                  maximumFractionDigits: 0,
+                })}
               </span>
-            )}
-          </div>
+              <span className="shrink-0 rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                {t("listingCount", { count: card.listing_count })}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -15,7 +15,7 @@ function LastDot({ cx, cy, index, total, color }: {
   color: string;
 }) {
   if (index !== total - 1 || cx === undefined || cy === undefined) return null;
-  return <circle cx={cx} cy={cy} r={4} fill={color} stroke="#14141b" strokeWidth={2} />;
+  return <circle cx={cx} cy={cy} r={4} fill={color} className="stroke-card" strokeWidth={2} />;
 }
 
 export function PriceHistoryChart({ data }: PriceHistoryChartProps) {

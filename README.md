@@ -19,7 +19,7 @@ Four services plus PostgreSQL, orchestrated with Taskfile and Docker Compose:
 ```
 ┌─────────────────┐   POST    ┌──────────────┐   GET    ┌──────────────┐
 │ scraper-carrot  │ ────────► │   API (Go)   │ ◄─────── │  web (Next)  │
-│ (Go collector)  │  listings │    :8080     │  cards   │    :3001     │
+│ (Go collector)  │  listings │    :9000     │  cards   │    :4000     │
 └─────────────────┘           └──────┬───────┘          └──────────────┘
                                       │
                               ┌───────▼────────┐
@@ -67,8 +67,8 @@ cp web/.env.example web/.env
 
 # 2. Start PostgreSQL (Docker) + API + web
 task db        # PostgreSQL on :5433
-task api       # Go API on :8080
-task web       # Next.js on :3001
+task api       # Go API on :9000
+task web       # Next.js on :4000
 
 # 3. Seed the master card database (one-off)
 task seed
@@ -81,7 +81,8 @@ task scraper
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/cards?page=1` | List master cards (page size 30) |
+| `GET` | `/api/cards?page=1` | Cards with active listings, ranked by listing count (page size 30) |
+| `GET` | `/api/catalog?page=1` | Full master card catalog (page size 30) |
 | `GET` | `/api/cards/{cardId}/listings` | Market listings for a card |
 | `POST` | `/api/sync` | Ingest listings from the collector |
 

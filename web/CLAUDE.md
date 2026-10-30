@@ -34,15 +34,23 @@ app/
 components/
   ui/                        # shadcn-компоненты как есть, не трогать руками без причины
   cards/                     # компоненты домена "карточки"
-    InfiniteCardGrid.tsx
+    CardTile.tsx
+    CatalogGrid.tsx
+    CatalogTable.tsx
+    CatalogToolbar.tsx
     PokemonCard.tsx
+    CardDetailModal.tsx
   layout/                    # компоненты каркаса приложения
+    Container.tsx            # общие горизонтальные границы страницы
     Header.tsx
   providers/                 # провайдеры верхнего уровня
     QueryProvider.tsx
   features/                  # самостоятельные секции/фичи страниц (не переиспользуемые виджеты)
     landing/
       Trending.tsx
+      OnMarketCarousel.tsx
+      StatsBar.tsx
+      CatalogSection.tsx
 
 lib/
   api/                       # fetch-функции к REST backend, по файлу на домен
@@ -194,6 +202,20 @@ export const useModalStore = create<ModalState>((set) => ({
   shadcn, и только потом писать кастомный.
 - Условные классы — через `cn()` из `lib/utils.ts`, не строковая
   конкатенация.
+
+### Тема
+
+- Сайт только тёмный: `<html className="dark">` в `app/layout.tsx`.
+  Палитра задаётся один раз в `app/globals.css`, блок `.dark`
+  (сине-серый фон, акцент `--primary` = sky `#38bdf8`).
+- В компонентах — только токены: `bg-background`, `bg-card`, `bg-muted`,
+  `hover:bg-accent`, `border-border`, `text-foreground`,
+  `text-muted-foreground`, `text-primary`. Хекс-литералы (`bg-[#...]`)
+  и `white/…` не используем. Исключения — цвета с собственным смыслом:
+  рост/падение цены на графике и фирменный цвет площадки (당근 `#FF8A00`).
+- Шрифты подключаются через `next/font` в `app/layout.tsx`:
+  IBM Plex Sans (`font-sans`), IBM Plex Mono (`font-mono`, цены и цифры
+  вместе с `tabular-nums`), Noto Sans KR как фолбэк для корейского.
 
 ## Мультиязычность (KO / EN)
 
