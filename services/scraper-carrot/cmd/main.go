@@ -18,7 +18,7 @@ import (
 
 func main() {
 	searchURL := getEnv("DAANGN_SEARCH_URL", "https://www.daangn.com/kr/buy-sell/s/?in=역삼동-6035&search=포켓몬+EX")
-	apiURL := getEnv("API_URL", "http://localhost:8080")
+	apiURL := getEnv("API_URL", "http://localhost:9000")
 
 	daangnClient := client.NewDaangnClient(&http.Client{Timeout: 10 * time.Second})
 	scrapeService := service.NewScrapeService(daangnClient, filter.NewCardFilter())

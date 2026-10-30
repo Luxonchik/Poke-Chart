@@ -27,25 +27,10 @@ func (s *ScrapeService) Scrape(ctx context.Context, url string) ([]models.Articl
 		return nil, err
 	}
 
-	remixCtx, err := parser.ExtractRemixContext(page)
+	articles, err := parser.ExtractArticles(page)
 	if err != nil {
 		return nil, err
 	}
 
-	articles := remixCtx.State.LoaderData.Route.AllPage.Articles
-	if len(articles) == 0 && remixCtx.State.LoaderData.Route.PoW.Challenge != "" {
-		articles, err = s.client.FetchArticlesWithPoW(ctx, *remixCtx)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	filtered := make([]models.Article, 0, len(articles))
-	for _, article := range articles {
-		if s.filter.IsValid(article) {
-			filtered = append(filtered, article)
-		}
-	}
-
-	return filtered, nil
+	return s.filter.Apply(articles), nil
 }

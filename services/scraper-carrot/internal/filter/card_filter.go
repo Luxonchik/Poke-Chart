@@ -10,7 +10,8 @@ import (
 
 var bulkRegex = regexp.MustCompile(`[2-9]\d+장|1\d{2,}장`)
 
-var fakePrices = []string{"123456.0", "12345.0"}
+// Placeholder prices sellers use instead of a real one.
+var fakePrices = []float64{123456, 12345}
 
 var stopWords = []string{
 	"피규어", "인형", "띠부씰", "케이스", "빈박스", "빈 박스", "닌텐도", "칩", "가챠", "figure",
@@ -31,7 +32,7 @@ func (f *CardFilter) IsValid(item models.Article) bool {
 	}
 
 	for _, fake := range fakePrices {
-		if item.Price == fake {
+		if priceFloat == fake {
 			return false
 		}
 	}
@@ -50,4 +51,15 @@ func (f *CardFilter) IsValid(item models.Article) bool {
 	}
 
 	return true
+}
+
+// Apply returns the articles that pass IsValid.
+func (f *CardFilter) Apply(articles []models.Article) []models.Article {
+	valid := make([]models.Article, 0, len(articles))
+	for _, a := range articles {
+		if f.IsValid(a) {
+			valid = append(valid, a)
+		}
+	}
+	return valid
 }

@@ -11,16 +11,9 @@ import (
 
 var remixContextRegexp = regexp.MustCompile(`window\.__remixContext = (\{.*?\});`)
 
+// ExtractArticles returns the listings rendered on a daangn.com search page.
+// It fails loudly when the page layout changes instead of returning zero articles.
 func ExtractArticles(page []byte) ([]models.Article, error) {
-	ctx, err := ExtractRemixContext(page)
-	if err != nil {
-		return nil, err
-	}
-
-	return ctx.State.LoaderData.Route.AllPage.Articles, nil
-}
-
-func ExtractRemixContext(page []byte) (*models.RemixContext, error) {
 	matches := remixContextRegexp.FindSubmatch(page)
 	if len(matches) < 2 {
 		return nil, errors.New("remix context not found on page")
@@ -31,5 +24,9 @@ func ExtractRemixContext(page []byte) (*models.RemixContext, error) {
 		return nil, fmt.Errorf("parse remix json: %w", err)
 	}
 
-	return &remixData, nil
+	route, ok := remixData.State.LoaderData[models.SearchRouteKey]
+	if !ok {
+		return nil, fmt.Errorf("unexpected page structure: loader %q not found", models.SearchRouteKey)
+	}
+	return route.Articles, nil
 }
