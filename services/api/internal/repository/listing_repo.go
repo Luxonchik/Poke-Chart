@@ -29,7 +29,16 @@ func (r *ListingRepo) GetListingsByMasterCardID(masterCardID string) ([]models.M
 		       COALESCE(created_at, NOW()),
 		       COALESCE(updated_at, NOW())
 		FROM market_listings
-		WHERE master_card_id = $1 AND status = 'active'
+		WHERE status = 'active'
+		  AND master_card_id IN (
+		      -- the card itself plus its other variants (same name, number and set)
+		      SELECT v.id
+		      FROM master_cards v
+		      JOIN master_cards c ON c.id = $1
+		      WHERE v.name = c.name
+		        AND COALESCE(v.card_no, '') = COALESCE(c.card_no, '')
+		        AND COALESCE(v.series, '') = COALESCE(c.series, '')
+		  )
 		ORDER BY price ASC
 	`
 	rows, err := r.DB.Query(q, masterCardID)
@@ -53,6 +62,28 @@ func (r *ListingRepo) GetListingsByMasterCardID(masterCardID string) ([]models.M
 		listings = append(listings, l)
 	}
 	return listings, rows.Err()
+}
+
+// GetMarketStats считает сводку по справочнику и объявлениям.
+// ai_processed — объявления, которые воркер уже разобрал (любой финальный статус).
+func (r *ListingRepo) GetMarketStats() (models.MarketStats, error) {
+	const q = `
+		SELECT
+		    (SELECT COUNT(*) FROM master_cards),
+		    COUNT(*) FILTER (WHERE status = 'active'),
+		    COUNT(*) FILTER (WHERE status IN ('active', 'rejected', 'error', 'closed')),
+		    MAX(scraped_at)
+		FROM market_listings
+	`
+	var s models.MarketStats
+	var last sql.NullTime
+	if err := r.DB.QueryRow(q).Scan(&s.CardsTracked, &s.ActiveListings, &s.AIProcessed, &last); err != nil {
+		return s, err
+	}
+	if last.Valid {
+		s.LastScrapedAt = &last.Time
+	}
+	return s, nil
 }
 
 // SyncListings делает diff текущего снимка с БД:

@@ -49,16 +49,17 @@ func (r *CardRepo) GetAllCards(limit int, offset int) ([]models.Card, error) {
 }
 
 func (r *CardRepo) GetAllCardsRankedByListings(limit int, offset int) ([]models.CardWithListingCount, error) {
-	query := `
-		SELECT mc.id, mc.name, mc.image_url, mc.card_no, mc.rarity, mc.series,
-		       COUNT(ml.id) AS listing_count
-		FROM master_cards mc
+	query := fmt.Sprintf(`
+		SELECT p.id, p.name, p.image_url, p.card_no, p.rarity, p.series, p.variant_count,
+		       COUNT(ml.id) AS listing_count,
+		       MIN(ml.price) AS min_price
+		FROM (%s) p
 		INNER JOIN market_listings ml
-			ON ml.master_card_id = mc.id AND ml.status = 'active'
-		GROUP BY mc.id, mc.name, mc.image_url, mc.card_no, mc.rarity, mc.series
-		ORDER BY listing_count DESC, mc.id
+			ON ml.master_card_id = ANY(p.ids) AND ml.status = 'active'
+		GROUP BY p.id, p.name, p.image_url, p.card_no, p.rarity, p.series, p.variant_count
+		ORDER BY listing_count DESC, p.id
 		LIMIT $1 OFFSET $2
-	`
+	`, printingsSubquery(""))
 
 	rows, err := r.DB.Query(query, limit, offset)
 	if err != nil {
@@ -67,19 +68,77 @@ func (r *CardRepo) GetAllCardsRankedByListings(limit int, offset int) ([]models.
 	}
 	defer rows.Close()
 
-	var cards []models.CardWithListingCount
+	return scanPrintings(rows)
+}
 
+// GetCatalog returns every printing from master_cards (LEFT JOIN), cards with listings first.
+// search filters by name or card number (case-insensitive substring); empty means no filter.
+// onSaleOnly keeps only printings with at least one active listing.
+func (r *CardRepo) GetCatalog(search string, onSaleOnly bool, limit int, offset int) ([]models.CardWithListingCount, error) {
+	query := fmt.Sprintf(`
+		SELECT p.id, p.name, p.image_url, p.card_no, p.rarity, p.series, p.variant_count,
+		       COUNT(ml.id) AS listing_count,
+		       MIN(ml.price) AS min_price
+		FROM (%s) p
+		LEFT JOIN market_listings ml
+			ON ml.master_card_id = ANY(p.ids) AND ml.status = 'active'
+		GROUP BY p.id, p.name, p.image_url, p.card_no, p.rarity, p.series, p.variant_count
+		HAVING NOT $4 OR COUNT(ml.id) > 0
+		ORDER BY listing_count DESC, p.id
+		LIMIT $2 OFFSET $3
+	`, printingsSubquery(`
+		WHERE $1 = ''
+		   OR name ILIKE '%' || $1 || '%' ESCAPE '\'
+		   OR card_no ILIKE '%' || $1 || '%' ESCAPE '\'`))
+
+	rows, err := r.DB.Query(query, escapeLike(strings.TrimSpace(search)), limit, offset, onSaleOnly)
+	if err != nil {
+		log.Println("❌ Ошибка при запросе каталога:", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanPrintings(rows)
+}
+
+// printingsSubquery collapses master_cards rows that share name, card number and set
+// into one "printing". The official list stores regular and mirror (holo) versions as
+// separate ids with identical text, so without this they show up as duplicates.
+// The lowest id represents the printing; ids holds every variant for joining listings.
+func printingsSubquery(where string) string {
+	return `
+		SELECT (array_agg(id ORDER BY id))[1]        AS id,
+		       name,
+		       (array_agg(COALESCE(image_url, '') ORDER BY id))[1] AS image_url,
+		       COALESCE(card_no, '')                AS card_no,
+		       COALESCE(MAX(NULLIF(rarity, '')), '') AS rarity,
+		       COALESCE(series, '')                 AS series,
+		       array_agg(id)                        AS ids,
+		       COUNT(*)                             AS variant_count
+		FROM master_cards` + where + `
+		GROUP BY name, COALESCE(card_no, ''), COALESCE(series, '')`
+}
+
+func scanPrintings(rows *sql.Rows) ([]models.CardWithListingCount, error) {
+	var cards []models.CardWithListingCount
 	for rows.Next() {
 		var c models.CardWithListingCount
-		err := rows.Scan(&c.ID, &c.Name, &c.ImageURL, &c.CardNo, &c.Rarity, &c.Series, &c.ListingCount)
-		if err != nil {
-			log.Println("❌ Ошибка при сканировании строки:", err)
-			continue
+		if err := rows.Scan(
+			&c.ID, &c.Name, &c.ImageURL, &c.CardNo, &c.Rarity, &c.Series, &c.VariantCount,
+			&c.ListingCount, &c.MinPrice,
+		); err != nil {
+			return nil, err
 		}
 		cards = append(cards, c)
 	}
+	return cards, rows.Err()
+}
 
-	return cards, nil
+var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+
+// escapeLike makes user input safe to use inside a LIKE pattern.
+func escapeLike(s string) string {
+	return likeEscaper.Replace(s)
 }
 
 func normalizeCardNo(cardNo string) string {

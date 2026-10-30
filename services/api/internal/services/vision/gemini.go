@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -15,6 +15,28 @@ import (
 
 	"pokechart-api/internal/models"
 )
+
+// defaultGeminiModel is used when GEMINI_MODEL is not set. Google retires model
+// versions regularly; switching models should only need a .env change.
+const defaultGeminiModel = "gemini-3.8-flash"
+
+func geminiModel() string {
+	if m := os.Getenv("GEMINI_MODEL"); m != "" {
+		return m
+	}
+	return defaultGeminiModel
+}
+
+// ErrModelBusy means Gemini rejected the request because of load or rate limits (429/503).
+// The request itself is fine and should be retried later.
+var ErrModelBusy = errors.New("Gemini временно перегружен")
+
+func statusError(code int, body []byte) error {
+	if code == http.StatusTooManyRequests || code == http.StatusServiceUnavailable {
+		return fmt.Errorf("%w (статус %d)", ErrModelBusy, code)
+	}
+	return fmt.Errorf("Gemini вернул статус %d: %s", code, string(body))
+}
 
 type VisionResult struct {
 	IsPokemonCard bool   `json:"is_pokemon_card"`
@@ -206,7 +228,7 @@ func ResolveMasterCardByImages(listingImageURL string, candidates []models.Card)
 	if apiKey == "" {
 		return nil, fmt.Errorf("переменная GEMINI_API_KEY не задана")
 	}
-	modelName := "gemini-2.5-flash"
+	modelName := geminiModel()
 
 	client := &http.Client{Timeout: 60 * time.Second}
 
@@ -290,7 +312,7 @@ func ResolveMasterCardByImages(listingImageURL string, candidates []models.Card)
 
 	bodyBytes, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("Gemini вернул статус %d: %s", resp.StatusCode, string(bodyBytes))
+		return nil, statusError(resp.StatusCode, bodyBytes)
 	}
 
 	var gr geminiGenerateContentResponse
@@ -328,7 +350,7 @@ func RecognizeCard(imageURL string) (*VisionResult, error) {
 		return nil, fmt.Errorf("переменная GEMINI_API_KEY не задана")
 	}
 
-	modelName := "gemini-2.5-flash"
+	modelName := geminiModel()
 
 	promptText := `You are an expert Pokemon TCG appraiser for the Korean market. Analyze this image.
 	
@@ -381,7 +403,6 @@ func RecognizeCard(imageURL string) (*VisionResult, error) {
 	}
 	req.Header.Set("x-goog-api-key", apiKey)
 	req.Header.Set("Content-Type", "application/json")
-	log.Printf("Gemini request: %s", endpoint)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка при отправке запроса: %w", err)
@@ -390,7 +411,7 @@ func RecognizeCard(imageURL string) (*VisionResult, error) {
 
 	bodyBytes, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("Gemini вернул статус %d: %s", resp.StatusCode, string(bodyBytes))
+		return nil, statusError(resp.StatusCode, bodyBytes)
 	}
 
 	var gr geminiGenerateContentResponse

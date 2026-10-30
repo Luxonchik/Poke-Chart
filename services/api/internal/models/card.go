@@ -14,5 +14,7 @@ type Card struct {
 
 type CardWithListingCount struct {
 	Card
-	ListingCount int `json:"listing_count"`
+	ListingCount int  `json:"listing_count"`
+	MinPrice     *int `json:"min_price"`     // lowest active listing price in KRW, null when none
+	VariantCount int  `json:"variant_count"` // master_cards rows for the same printing (e.g. regular + mirror)
 }

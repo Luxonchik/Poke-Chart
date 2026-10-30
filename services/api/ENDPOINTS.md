@@ -26,7 +26,9 @@ flowchart LR
 
 | Method | Path | Handler | Input | Success response | Storage/service |
 | --- | --- | --- | --- | --- | --- |
-| `GET` | `/api/cards?page=1` | `CardHandler.GetCards` | Query `page`, optional positive integer. Defaults to `1`. | `200` JSON array of cards. Empty result is `[]`. | Reads `master_cards`. |
+| `GET` | `/api/cards?page=1` | `CardHandler.GetCards` | Query `page`, optional positive integer. Defaults to `1`. | `200` JSON array of cards with active listings. Empty result is `[]`. | Reads `master_cards` INNER JOIN `market_listings`. |
+| `GET` | `/api/catalog?page=1&q=&on_sale=1` | `CardHandler.GetCatalog` | Query `page` (same rules as `/api/cards`), optional `q` search string, optional `on_sale=1`. | `200` JSON array of all cards. | Reads `master_cards` LEFT JOIN `market_listings`. |
+| `GET` | `/api/stats` | `StatsHandler.GetStats` | — | `200` JSON object with market totals. | Reads `master_cards`, `market_listings`. |
 | `POST` | `/api/listings` | `ListingHandler.ReceiveFromScraper` | JSON listing payload from scraper. `daangn_id` is required. | `201` when inserted, `200` when duplicate already existed. | Inserts/updates `market_listings`. |
 | `POST` | `/api/test-vision` | `TestVisionHandler` | JSON with `image_url`. | `200` JSON vision result. | Calls `vision.RecognizeCard`. |
 
@@ -49,9 +51,49 @@ Response item:
   "image_url": "string",
   "card_no": "string",
   "rarity": "string",
-  "series": "string"
+  "series": "string",
+  "listing_count": 0,
+  "min_price": 42000,
+  "variant_count": 1
 }
 ```
+
+Rows of `master_cards` with the same `name`, `card_no` and `series` (regular and mirror versions) are returned as one item: `id` is the lowest id, `listing_count`/`min_price` cover all versions, `variant_count` is how many were merged.
+
+`min_price` is the lowest active listing price in KRW, or `null` when there are none.
+
+Errors:
+
+| Status | Cause |
+| --- | --- |
+| `500` | Database query failed. |
+
+## GET /api/catalog
+
+Returns every printing from `master_cards`, cards with active listings first (`listing_count DESC, id`), including cards without listings. Same response item as `GET /api/cards`; `listing_count` is `0` for cards with no active listings.
+
+Query params:
+
+| Name | Type | Required | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `page` | integer | No | `1` | Same rules as `/api/cards`. |
+| `q` | string | No | `""` | Case-insensitive substring of `name` or `card_no`. LIKE wildcards are escaped; truncated to 100 characters. |
+| `on_sale` | `1` | No | — | When `1`, only printings with at least one active listing. |
+
+## GET /api/stats
+
+Response:
+
+```json
+{
+  "cards_tracked": 5012,
+  "active_listings": 14,
+  "ai_processed": 63,
+  "last_scraped_at": "2026-10-27T06:30:00Z"
+}
+```
+
+`ai_processed` counts listings in a final worker status (`active`, `rejected`, `error`, `closed`). `last_scraped_at` is `null` when there are no listings.
 
 Errors:
 

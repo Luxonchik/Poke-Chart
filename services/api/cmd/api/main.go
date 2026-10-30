@@ -45,7 +45,7 @@ func main() {
 	}
 
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":9000",
 		Handler: withCORS(mux),
 	}
 
@@ -56,7 +56,7 @@ func main() {
 		srv.Shutdown(shutdownCtx)
 	}()
 
-	fmt.Println("🚀 API запущен на :8080")
+	fmt.Println("🚀 API запущен на :9000")
 	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}

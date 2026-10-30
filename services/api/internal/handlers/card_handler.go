@@ -28,6 +28,29 @@ func (h *CardHandler) GetCards(w http.ResponseWriter, r *http.Request) {
 	offset := (page - 1) * limit
 
 	cards, err := h.repo.GetAllCardsRankedByListings(limit, offset)
+	h.writeCards(w, cards, err)
+}
+
+const maxSearchLen = 100
+
+// GetCatalog — GET /api/catalog?page=N&q=...&on_sale=1 : all master cards, 30 per page.
+func (h *CardHandler) GetCatalog(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	page := 1
+	if p, err := strconv.Atoi(query.Get("page")); err == nil && p > 0 {
+		page = p
+	}
+	search := query.Get("q")
+	if len([]rune(search)) > maxSearchLen {
+		search = string([]rune(search)[:maxSearchLen])
+	}
+	onSaleOnly := query.Get("on_sale") == "1"
+	limit := 30
+	cards, err := h.repo.GetCatalog(search, onSaleOnly, limit, (page-1)*limit)
+	h.writeCards(w, cards, err)
+}
+
+func (h *CardHandler) writeCards(w http.ResponseWriter, cards []models.CardWithListingCount, err error) {
 	if err != nil {
 		http.Error(w, "Ошибка сервера при получении карт", http.StatusInternalServerError)
 		return

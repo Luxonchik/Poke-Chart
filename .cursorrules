@@ -7,7 +7,7 @@ An analytical web platform for tracking and aggregating secondary market prices 
 - **Frontend:** Next.js (App Router), React, TypeScript, TailwindCSS, shadcn/ui, React Query.
 - **Backend:** Go (Golang) 1.21+, standard `net/http` router.
 - **Database:** PostgreSQL.
-- **AI Integration:** Google Gemini Vision API (gemini-2.5-flash).
+- **AI Integration:** Google Gemini Vision API (model from `GEMINI_MODEL`, default `gemini-3.8-flash`).
 
 ## 📂 Architecture & Folder Structure
 The project is divided into two main monorepo-style directories:
